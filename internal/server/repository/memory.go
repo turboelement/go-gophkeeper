@@ -69,6 +69,18 @@ func copyUser(u *models.User) *models.User {
 	return &cp
 }
 
+// copySecret создаёт копию Secret для предотвращения внешних мутаций.
+func copySecret(s *models.Secret) *models.Secret {
+	cp := *s
+	return &cp
+}
+
+// copySession создаёт копию Session для предотвращения внешних мутаций.
+func copySession(s *models.Session) *models.Session {
+	cp := *s
+	return &cp
+}
+
 func (r *memoryUserRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
 	r.parent.mu.RLock()
 	defer r.parent.mu.RUnlock()
@@ -77,7 +89,7 @@ func (r *memoryUserRepository) GetByID(ctx context.Context, id uuid.UUID) (*mode
 	if !ok {
 		return nil, domainerrors.ErrNotFound
 	}
-	return user, nil
+	return copyUser(user), nil
 }
 
 func (r *memoryUserRepository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
@@ -92,7 +104,7 @@ func (r *memoryUserRepository) GetByEmail(ctx context.Context, email string) (*m
 	if !ok {
 		return nil, domainerrors.ErrNotFound
 	}
-	return user, nil
+	return copyUser(user), nil
 }
 
 func (r *memoryUserRepository) Update(ctx context.Context, user *models.User) error {
@@ -156,7 +168,7 @@ func (r *memorySecretRepository) GetByID(ctx context.Context, id uuid.UUID) (*mo
 	if !ok || secret.DeletedAt != nil {
 		return nil, domainerrors.ErrNotFound
 	}
-	return secret, nil
+	return copySecret(secret), nil
 }
 
 func (r *memorySecretRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]models.SecretMeta, error) {
@@ -230,7 +242,7 @@ func (r *memorySessionRepository) GetByToken(ctx context.Context, token string) 
 	if !ok || session.ExpiresAt.Before(time.Now()) {
 		return nil, domainerrors.ErrNotFound
 	}
-	return session, nil
+	return copySession(session), nil
 }
 
 func (r *memorySessionRepository) Delete(ctx context.Context, token string) error {

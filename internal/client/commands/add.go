@@ -6,11 +6,12 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"go-gophkeeper/internal/client/app"
 	httpclient "go-gophkeeper/internal/client/http"
 	"go-gophkeeper/internal/crypto"
 )
 
-func newAddCmd() *cobra.Command {
+func newAddCmd(a *app.App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add [credential|text|card|binary]",
 		Short: "Добавить новый секрет",
@@ -71,10 +72,11 @@ func newAddCmd() *cobra.Command {
 				return fmt.Errorf("marshal payload: %w", err)
 			}
 
-			// Используем AES-256-GCM шифрование.
-			var key [32]byte
-			copy(key[:], "go-gophkeeper-demo-key-1234567890")
-			engine := crypto.NewAESGCMEngine(key)
+			// Используем ключ, полученный из мастер-пароля через Argon2id.
+			if a.MasterKey == nil {
+				return fmt.Errorf("not authenticated. Please login first: gophkeeper login <email>")
+			}
+			engine := crypto.NewAESGCMEngine(*a.MasterKey)
 
 			encrypted, err := engine.Encrypt(payloadJSON)
 			if err != nil {
@@ -87,7 +89,7 @@ func newAddCmd() *cobra.Command {
 				EncryptedPayload: encrypted,
 			}
 
-			if err := gophkeeperApp.Client.CreateSecret(req); err != nil {
+			if err := a.Client.CreateSecret(req); err != nil {
 				return fmt.Errorf("create secret: %w", err)
 			}
 

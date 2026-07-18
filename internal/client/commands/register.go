@@ -2,11 +2,15 @@
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
+
+	"go-gophkeeper/internal/client/app"
 )
 
-func newRegisterCmd() *cobra.Command {
+func newRegisterCmd(a *app.App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "register [email]",
 		Short: "Регистрация нового пользователя",
@@ -19,13 +23,13 @@ func newRegisterCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			email := args[0]
 
-			fmt.Print("Enter master password: ")
+			fmt.Fprint(os.Stderr, "Enter master password: ")
 			password, err := readPassword()
 			if err != nil {
 				return fmt.Errorf("read password: %w", err)
 			}
 
-			fmt.Print("Confirm master password: ")
+			fmt.Fprint(os.Stderr, "Confirm master password: ")
 			confirm, err := readPassword()
 			if err != nil {
 				return fmt.Errorf("read confirm: %w", err)
@@ -36,30 +40,37 @@ func newRegisterCmd() *cobra.Command {
 			}
 
 			// Отправляем запрос на сервер.
-			token, userID, err := gophkeeperApp.Client.Register(email, password)
+			token, userID, err := a.Client.Register(email, password)
 			if err != nil {
 				return fmt.Errorf("register failed: %w", err)
 			}
 
 			// Сохраняем токен и UserID локально.
-			if err := gophkeeperApp.SaveToken(token); err != nil {
+			if err := a.SaveToken(token); err != nil {
 				return fmt.Errorf("save token: %w", err)
 			}
-			if err := gophkeeperApp.SaveUserID(userID); err != nil {
+			if err := a.SaveUserID(userID); err != nil {
 				return fmt.Errorf("save user id: %w", err)
 			}
+
+			// Выводим ключ шифрования из мастер-пароля (ключ существует только в памяти).
+			a.SetMasterKey(password, userID)
+
 			fmt.Printf("\nRegistration successful!\n")
 			fmt.Printf("   User ID: %s\n", userID)
-			fmt.Printf("   Token saved to: %s\n", gophkeeperApp.Config.TokenFile)
+			fmt.Printf("   Token saved to: %s\n", a.Config.TokenFile)
 
 			return nil
 		},
 	}
 }
 
-// readPassword читает пароль из терминала.
+// readPassword читает пароль из терминала без эха (безопасный ввод).
 func readPassword() (string, error) {
-	var pwd string
-	_, err := fmt.Scanln(&pwd)
-	return pwd, err
+	raw, err := term.ReadPassword(int(os.Stdin.Fd()))
+	if err != nil {
+		return "", fmt.Errorf("read password: %w", err)
+	}
+	fmt.Println() // перевод строки после ввода пароля
+	return string(raw), nil
 }

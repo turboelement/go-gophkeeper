@@ -20,7 +20,7 @@ import (
 const shutdownTimeout = 30 * time.Second
 
 func main() {
-	// Загрузка конфигурации (env > флаги > JSON).
+	// Загрузка конфигурации (env > флаги > JSON > defaults).
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)

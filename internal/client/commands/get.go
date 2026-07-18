@@ -7,10 +7,11 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"go-gophkeeper/internal/client/app"
 	"go-gophkeeper/internal/crypto"
 )
 
-func newGetCmd() *cobra.Command {
+func newGetCmd(a *app.App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get [id]",
 		Short: "Получить секрет по ID",
@@ -24,7 +25,7 @@ func newGetCmd() *cobra.Command {
 			listMode, _ := cmd.Flags().GetBool("list")
 
 			if listMode {
-				return listSecrets()
+				return listSecrets(a)
 			}
 
 			if len(args) == 0 {
@@ -35,7 +36,7 @@ func newGetCmd() *cobra.Command {
 
 			// Получаем зашифрованные данные с сервера.
 
-			data, err := gophkeeperApp.Client.GetSecret(secretID)
+			data, err := a.Client.GetSecret(secretID)
 			if err != nil {
 				return fmt.Errorf("get secret: %w", err)
 			}
@@ -53,10 +54,11 @@ func newGetCmd() *cobra.Command {
 				return fmt.Errorf("parse secret: %w", err)
 			}
 
-			// Дешифруем payload.
-			var key [32]byte
-			copy(key[:], "go-gophkeeper-demo-key-1234567890")
-			engine := crypto.NewAESGCMEngine(key)
+			// Используем ключ, полученный из мастер-пароля через Argon2id.
+			if a.MasterKey == nil {
+				return fmt.Errorf("not authenticated. Please login first: gophkeeper login <email>")
+			}
+			engine := crypto.NewAESGCMEngine(*a.MasterKey)
 
 			plaintext, err := engine.Decrypt(secret.EncryptedPayload)
 			if err != nil {
@@ -88,8 +90,9 @@ func newGetCmd() *cobra.Command {
 	return cmd
 }
 
-func listSecrets() error {
-	data, err := gophkeeperApp.Client.ListSecrets()
+// listSecrets получает список секретов с сервера и выводит в виде таблицы.
+func listSecrets(a *app.App) error {
+	data, err := a.Client.ListSecrets()
 	if err != nil {
 		return fmt.Errorf("list secrets: %w", err)
 	}

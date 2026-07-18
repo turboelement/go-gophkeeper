@@ -1,14 +1,15 @@
 ﻿package commands
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"go-gophkeeper/internal/client/app"
 )
 
-func newSyncCmd() *cobra.Command {
+func newSyncCmd(a *app.App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync",
 		Short: "Синхронизация с сервером",
@@ -23,20 +24,20 @@ Push — отправляет локальные изменения на сер�
 			pushOnly, _ := cmd.Flags().GetBool("push-only")
 			pullOnly, _ := cmd.Flags().GetBool("pull-only")
 
-			if gophkeeperApp.Client.GetToken() == "" {
+			if a.Client.GetToken() == "" {
 				return fmt.Errorf("not authenticated. Please login first: gophkeeper login <email>")
 			}
 
 			if !pushOnly {
 				fmt.Println("Pulling changes from server...")
-				if err := pullChanges(); err != nil {
+				if err := pullChanges(a); err != nil {
 					fmt.Printf("Pull warning: %v\n", err)
 				}
 			}
 
 			if !pullOnly {
 				fmt.Println("Pushing local changes...")
-				if err := pushChanges(); err != nil {
+				if err := pushChanges(a); err != nil {
 					fmt.Printf("Push warning: %v\n", err)
 				}
 			}
@@ -54,8 +55,8 @@ Push — отправляет локальные изменения на сер�
 }
 
 // pullChanges загружает изменения с сервера.
-func pullChanges() error {
-	_, err := gophkeeperApp.Client.ListSecrets()
+func pullChanges(a *app.App) error {
+	_, err := a.Client.ListSecrets()
 	if err != nil {
 		return fmt.Errorf("pull: %w", err)
 	}
@@ -63,7 +64,8 @@ func pullChanges() error {
 }
 
 // pushChanges отправляет локальные изменения на сервер.
-func pushChanges() error {
-	_ = json.Unmarshal
+func pushChanges(a *app.App) error {
+	// TODO: реализовать отправку изменений.
+	_ = a
 	return nil
 }

@@ -7,12 +7,16 @@ import (
 
 	"go-gophkeeper/internal/client/config"
 	httpclient "go-gophkeeper/internal/client/http"
+	"go-gophkeeper/internal/crypto"
+
+	"github.com/google/uuid"
 )
 
 // App — собранное приложение CLI-клиента.
 type App struct {
-	Config *config.Config
-	Client *httpclient.Client
+	Config    *config.Config
+	Client    *httpclient.Client
+	MasterKey *[crypto.KeySize]byte // ключ шифрования, полученный из мастер-пароля через Argon2id
 }
 
 // New создаёт и собирает приложение из конфига.
@@ -30,6 +34,16 @@ func New() (*App, error) {
 		Config: cfg,
 		Client: httpCli,
 	}, nil
+}
+
+// SetMasterKey выводит ключ шифрования из мастер-пароля и UserID и сохраняет в памяти.
+func (a *App) SetMasterKey(masterPassword string, userID string) {
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return // невалидный UserID — ключ останется nil
+	}
+	key := crypto.DeriveKey(masterPassword, uid)
+	a.MasterKey = &key
 }
 
 // WithServerAddr переопределяет адрес сервера (из флага --server).
