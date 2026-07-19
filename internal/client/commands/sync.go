@@ -1,6 +1,7 @@
 ﻿package commands
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -24,21 +25,33 @@ Push — отправляет локальные изменения на сер�
 			pushOnly, _ := cmd.Flags().GetBool("push-only")
 			pullOnly, _ := cmd.Flags().GetBool("pull-only")
 
-			if a.Client.GetToken() == "" {
-				return fmt.Errorf("not authenticated. Please login first: gophkeeper login <email>")
+			if err := ensureStorageService(a); err != nil {
+				return err
 			}
+
+			if a.SyncService == nil {
+				return fmt.Errorf("sync service not initialized. Please login first")
+			}
+
+			ctx := context.Background()
 
 			if !pushOnly {
 				fmt.Println("Pulling changes from server...")
-				if err := pullChanges(a); err != nil {
+				count, err := a.SyncService.Pull(ctx)
+				if err != nil {
 					fmt.Printf("Pull warning: %v\n", err)
+				} else {
+					fmt.Printf("Pulled %d changes\n", count)
 				}
 			}
 
 			if !pullOnly {
 				fmt.Println("Pushing local changes...")
-				if err := pushChanges(a); err != nil {
+				count, err := a.SyncService.Push(ctx)
+				if err != nil {
 					fmt.Printf("Push warning: %v\n", err)
+				} else {
+					fmt.Printf("Pushed %d changes\n", count)
 				}
 			}
 
@@ -56,16 +69,22 @@ Push — отправляет локальные изменения на сер�
 
 // pullChanges загружает изменения с сервера.
 func pullChanges(a *app.App) error {
-	_, err := a.Client.ListSecrets()
+	ctx := context.Background()
+	count, err := a.SyncService.Pull(ctx)
 	if err != nil {
 		return fmt.Errorf("pull: %w", err)
 	}
+	fmt.Printf("Pulled %d changes\n", count)
 	return nil
 }
 
 // pushChanges отправляет локальные изменения на сервер.
 func pushChanges(a *app.App) error {
-	// TODO: реализовать отправку изменений.
-	_ = a
+	ctx := context.Background()
+	count, err := a.SyncService.Push(ctx)
+	if err != nil {
+		return fmt.Errorf("push: %w", err)
+	}
+	fmt.Printf("Pushed %d changes\n", count)
 	return nil
 }

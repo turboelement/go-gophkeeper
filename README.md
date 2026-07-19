@@ -10,6 +10,8 @@ GophKeeper — клиент-серверное приложение для бе�
 - Zero Trust: сервер не видит содержимое секретов
 - AES-256-GCM с уникальным nonce на каждый секрет
 - Мастер-ключ через Argon2id (защита от брутфорса)
+- **Локальное кеширование с офлайн-доступом** — данные сохраняются на диске в зашифрованном виде
+- **Двунаправленная синхронизация (Push/Pull)** — локальные изменения отправляются на сервер командой `sync`
 - JWT + bcrypt для аутентификации
 - PostgreSQL в production, in-memory для разработки (без БД)
 - Кроссплатформенный: Windows, Linux, macOS
@@ -41,8 +43,11 @@ go build -ldflags="-X main.version=1.0.0 -X main.buildDate=$(date -u +%Y-%m-%d) 
 # Вход
 .\gophkeeper.exe login user@example.com
 
-# Сохранить пароль от GitHub
+# Сохранить пароль от GitHub (локально)
 .\gophkeeper.exe add credential --title "GitHub" --login "user" --password "pass123"
+
+# Синхронизировать с сервером
+.\gophkeeper.exe sync
 
 # Посмотреть список
 .\gophkeeper.exe get --list
@@ -65,7 +70,7 @@ go build -ldflags="-X main.version=1.0.0 -X main.buildDate=$(date -u +%Y-%m-%d) 
 - add card — банковская карта. Пример: `gophkeeper add card --title "Visa" --number "1234" --holder "CARD HOLDER" --cvv "123" --expires "12/28"`
 - get --list — список всех секретов
 - get <id> — детали секрета по UUID
-- sync — синхронизация с сервером
+- sync — синхронизация с сервером. Сначала кеширует данные локально (офлайн), затем отправляет (`sync --push-only`) или загружает (`sync --pull-only`). Пример: `gophkeeper sync`
 - version — версия и сборка
 
 Глобальный флаг: `-s, --server` — адрес сервера (host:port).
@@ -156,7 +161,7 @@ go tool cover -html=coverage.out -o coverage.html
 - docs — инструкция по сборке (BUILD.md) и пример конфига сервера (server.json)
 - migrations — SQL-миграции для PostgreSQL
 - internal/auth — JWT и bcrypt
-- internal/client — CLI клиент (команды, конфиг, HTTP клиент, сервис шифрования)
+- internal/client — CLI клиент (команды, конфиг, HTTP клиент, сервисы шифрования/кеширования/синхронизации)
 - internal/crypto — AES-256-GCM и Argon2id KDF
 - internal/domain — модели данных, интерфейсы, ошибки
 - internal/pkg — логер и формат ответов API

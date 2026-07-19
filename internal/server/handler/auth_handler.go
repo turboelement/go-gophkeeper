@@ -34,14 +34,15 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.authService.Register(r.Context(), req.Email, req.Password)
+	token, userID, err := h.authService.Register(r.Context(), req.Email, req.Password)
 	if err != nil {
 		h.writeError(w, err)
 		return
 	}
 
 	response.Success(w, http.StatusCreated, map[string]string{
-		"token": token,
+		"token":   token,
+		"user_id": userID.String(),
 	})
 }
 
@@ -53,14 +54,15 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.authService.Login(r.Context(), req.Email, req.Password)
+	token, userID, err := h.authService.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
 		h.writeError(w, err)
 		return
 	}
 
 	response.Success(w, http.StatusOK, map[string]string{
-		"token": token,
+		"token":   token,
+		"user_id": userID.String(),
 	})
 }
 

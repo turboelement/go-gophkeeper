@@ -245,9 +245,30 @@ func validateSecretData(data interfaces.SecretData) error {
 	return nil
 }
 
+// SecretRepo возвращает репозиторий секретов (для SyncService).
+func (s *StorageService) SecretRepo() interfaces.SecretRepository {
+	return s.secretRepo
+}
+
 // SetUserID обновляет UserID в StorageService (например, после логина).
 func (s *StorageService) SetUserID(userID uuid.UUID) {
 	s.userID = userID
+}
+
+// MarkSynced изменяет статус секрета на synced после успешной отправки на сервер.
+func (s *StorageService) MarkSynced(ctx context.Context, id uuid.UUID) error {
+	if lr, ok := s.secretRepo.(*LocalRepository); ok {
+		return lr.SetStatus(ctx, id, SyncStatusSynced)
+	}
+	return nil
+}
+
+// MarkDeleted удаляет секрет из локального кеша после подтверждения сервером.
+func (s *StorageService) MarkDeleted(ctx context.Context, id uuid.UUID) error {
+	if lr, ok := s.secretRepo.(*LocalRepository); ok {
+		return lr.Remove(ctx, id)
+	}
+	return nil
 }
 
 // Ensure interfaces compliance.

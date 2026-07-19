@@ -1,14 +1,13 @@
 ﻿package commands
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/spf13/cobra"
 
 	"go-gophkeeper/internal/client/app"
-	httpclient "go-gophkeeper/internal/client/http"
-	"go-gophkeeper/internal/crypto"
+	"go-gophkeeper/internal/domain/interfaces"
+	"go-gophkeeper/internal/domain/models"
 )
 
 func newAddCmd(a *app.App) *cobra.Command {
@@ -28,10 +27,29 @@ func newAddCmd(a *app.App) *cobra.Command {
   gophkeeper add card --title "Visa" --number "4111..." --holder "John" --cvv "123" --expires "12/28"`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := ensureStorageService(a); err != nil {
+				return err
+			}
+
 			secretType := args[0]
 			title, _ := cmd.Flags().GetString("title")
 			if title == "" {
 				return fmt.Errorf("title is required (--title)")
+			}
+
+			// Нормализуем тип.
+			var st models.SecretType
+			switch secretType {
+			case "credential":
+				st = models.SecretCredential
+			case "text":
+				st = models.SecretText
+			case "card":
+				st = models.SecretCard
+			case "binary":
+				st = models.SecretBinary
+			default:
+				return fmt.Errorf("unknown type: %s (use: credential, text, card, binary)", secretType)
 			}
 
 			// Собираем payload в зависимости от типа.
@@ -62,38 +80,29 @@ func newAddCmd(a *app.App) *cobra.Command {
 				if payload["filename"] == "" || payload["content"] == "" {
 					return fmt.Errorf("binary requires --filename and --content")
 				}
-			default:
-				return fmt.Errorf("unknown type: %s (use: credential, text, card, binary)", secretType)
 			}
 
-			// Шифруем payload.
-			payloadJSON, err := json.Marshal(payload)
+			// Парсим metadata, если указан.
+			var metadata map[string]string
+			if metaStr, _ := cmd.Flags().GetString("metadata"); metaStr != "" {
+				metadata = map[string]string{"raw": metaStr}
+			}
+
+			// Используем StorageService.Create — он сам зашифрует и сохранит локально.
+			data := interfaces.SecretData{
+				Type:     st,
+				Title:    title,
+				Metadata: metadata,
+				Payload:  payload,
+			}
+
+			secret, err := a.StorageService.Create(cmd.Context(), data)
 			if err != nil {
-				return fmt.Errorf("marshal payload: %w", err)
-			}
-
-			// Используем ключ, полученный из мастер-пароля через Argon2id.
-			if a.MasterKey == nil {
-				return fmt.Errorf("not authenticated. Please login first: gophkeeper login <email>")
-			}
-			engine := crypto.NewAESGCMEngine(*a.MasterKey)
-
-			encrypted, err := engine.Encrypt(payloadJSON)
-			if err != nil {
-				return fmt.Errorf("encrypt: %w", err)
-			}
-
-			req := httpclient.CreateSecretRequest{
-				Type:             secretType,
-				Title:            title,
-				EncryptedPayload: encrypted,
-			}
-
-			if err := a.Client.CreateSecret(req); err != nil {
 				return fmt.Errorf("create secret: %w", err)
 			}
 
-			fmt.Printf("\nSecret \"%s\" created successfully!\n", title)
+			fmt.Printf("\nSecret \"%s\" created successfully!\n", secret.Title)
+			fmt.Printf("  ID: %s\n", secret.ID)
 			return nil
 		},
 	}

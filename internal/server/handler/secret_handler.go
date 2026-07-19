@@ -48,6 +48,7 @@ type updateSecretRequest struct {
 
 type secretResponse struct {
 	ID               string          `json:"id"`
+	UserID           string          `json:"user_id"`
 	Type             string          `json:"type"`
 	Title            string          `json:"title"`
 	Metadata         json.RawMessage `json:"metadata,omitempty"`
@@ -278,6 +279,7 @@ func isValidSecretType(t string) bool {
 func toSecretResponse(s *models.Secret) secretResponse {
 	resp := secretResponse{
 		ID:               s.ID.String(),
+		UserID:           s.UserID.String(),
 		Type:             string(s.Type),
 		Title:            s.Title,
 		Metadata:         s.Metadata,

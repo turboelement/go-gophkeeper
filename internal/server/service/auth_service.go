@@ -42,26 +42,26 @@ func NewAuthService(
 	}
 }
 
-// Register создаёт пользователя и возвращает JWT-токен.
-func (s *AuthService) Register(ctx context.Context, email, password string) (string, error) {
+// Register создаёт пользователя и возвращает JWT-токен и UUID пользователя.
+func (s *AuthService) Register(ctx context.Context, email, password string) (string, uuid.UUID, error) {
 	if err := validateEmail(email); err != nil {
-		return "", fmt.Errorf("invalid email: %w", err)
+		return "", uuid.Nil, fmt.Errorf("invalid email: %w", err)
 	}
 	if err := validatePassword(password); err != nil {
-		return "", fmt.Errorf("invalid password: %w", err)
+		return "", uuid.Nil, fmt.Errorf("invalid password: %w", err)
 	}
 
 	existing, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil && err != domainerrors.ErrNotFound {
-		return "", fmt.Errorf("check existing user: %w", err)
+		return "", uuid.Nil, fmt.Errorf("check existing user: %w", err)
 	}
 	if existing != nil {
-		return "", domainerrors.ErrAlreadyExists
+		return "", uuid.Nil, domainerrors.ErrAlreadyExists
 	}
 
 	passwordHash, err := auth.Hash(password)
 	if err != nil {
-		return "", fmt.Errorf("hash password: %w", err)
+		return "", uuid.Nil, fmt.Errorf("hash password: %w", err)
 	}
 
 	now := time.Now()
@@ -74,12 +74,12 @@ func (s *AuthService) Register(ctx context.Context, email, password string) (str
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
-		return "", fmt.Errorf("create user: %w", err)
+		return "", uuid.Nil, fmt.Errorf("create user: %w", err)
 	}
 
 	token, err := auth.Generate(user.ID, s.jwtSecret, s.jwtExpiry)
 	if err != nil {
-		return "", fmt.Errorf("generate token: %w", err)
+		return "", uuid.Nil, fmt.Errorf("generate token: %w", err)
 	}
 
 	session := &models.Session{
@@ -89,7 +89,7 @@ func (s *AuthService) Register(ctx context.Context, email, password string) (str
 	}
 
 	if err := s.sessionRepo.Create(ctx, session); err != nil {
-		return "", fmt.Errorf("create session: %w", err)
+		return "", uuid.Nil, fmt.Errorf("create session: %w", err)
 	}
 
 	s.logger.Info("user registered",
@@ -97,33 +97,33 @@ func (s *AuthService) Register(ctx context.Context, email, password string) (str
 		zap.String("email", email),
 	)
 
-	return token, nil
+	return token, user.ID, nil
 }
 
-// Login аутентифицирует пользователя и возвращает JWT-токен.
-func (s *AuthService) Login(ctx context.Context, email, password string) (string, error) {
+// Login аутентифицирует пользователя и возвращает JWT-токен и UUID пользователя.
+func (s *AuthService) Login(ctx context.Context, email, password string) (string, uuid.UUID, error) {
 	if err := validateEmail(email); err != nil {
-		return "", fmt.Errorf("invalid email: %w", err)
+		return "", uuid.Nil, fmt.Errorf("invalid email: %w", err)
 	}
 	if password == "" {
-		return "", fmt.Errorf("password is required")
+		return "", uuid.Nil, fmt.Errorf("password is required")
 	}
 
 	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		if err == domainerrors.ErrNotFound {
-			return "", domainerrors.ErrInvalidCredentials
+			return "", uuid.Nil, domainerrors.ErrInvalidCredentials
 		}
-		return "", fmt.Errorf("get user: %w", err)
+		return "", uuid.Nil, fmt.Errorf("get user: %w", err)
 	}
 
 	if err := auth.Verify(user.MasterPasswordHash, password); err != nil {
-		return "", domainerrors.ErrInvalidCredentials
+		return "", uuid.Nil, domainerrors.ErrInvalidCredentials
 	}
 
 	token, err := auth.Generate(user.ID, s.jwtSecret, s.jwtExpiry)
 	if err != nil {
-		return "", fmt.Errorf("generate token: %w", err)
+		return "", uuid.Nil, fmt.Errorf("generate token: %w", err)
 	}
 
 	session := &models.Session{
@@ -133,7 +133,7 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 	}
 
 	if err := s.sessionRepo.Create(ctx, session); err != nil {
-		return "", fmt.Errorf("create session: %w", err)
+		return "", uuid.Nil, fmt.Errorf("create session: %w", err)
 	}
 
 	s.logger.Info("user logged in",
@@ -141,7 +141,7 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 		zap.String("email", email),
 	)
 
-	return token, nil
+	return token, user.ID, nil
 }
 
 func validateEmail(email string) error {

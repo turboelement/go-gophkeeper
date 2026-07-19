@@ -169,6 +169,28 @@ func (c *Client) ListSecrets() (json.RawMessage, error) {
 	return c.readResponseData(resp)
 }
 
+// UpdateSecret отправляет запрос на обновление секрета.
+func (c *Client) UpdateSecret(id string, req CreateSecretRequest) error {
+	resp, err := c.doRequest("PUT", "/api/v1/secrets/"+id, req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return c.checkSuccess(resp)
+}
+
+// DeleteSecret отправляет запрос на удаление секрета.
+func (c *Client) DeleteSecret(id string) error {
+	resp, err := c.doRequest("DELETE", "/api/v1/secrets/"+id, nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return c.checkSuccess(resp)
+}
+
 // checkSuccess проверяет, что ответ содержит success=true.
 func (c *Client) checkSuccess(resp *http.Response) error {
 	if resp.StatusCode >= 400 {
