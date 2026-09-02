@@ -1,0 +1,14 @@
+{
+  "server_host": "0.0.0.0",
+  "server_port": 8080,
+  "server_read_timeout": "10s",
+  "server_write_timeout": "10s",
+  "database_dsn": "postgres://user:pass@localhost:5432/gophkeeper?sslmode=disable",
+  "database_max_open_conns": 25,
+  "database_max_idle_conns": 10,
+  "database_conn_max_lifetime": "5m",
+  "jwt_secret": "change-me-in-production",
+  "jwt_expiration": "24h",
+  "log_level": "debug",
+  "log_dev_mode": true
+}
